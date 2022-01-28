@@ -25,7 +25,7 @@ This section lists next the commands to install all the dependencies, and thus e
  
 4. Run the SDN framework based on Ryu, and the developed application:
 ````
-# ryu-manager --observe-links custom_rest_topology.py
+# ryu-manager --observe-links l2s-sdn-framework-app.py
 ````
 
 ## References
