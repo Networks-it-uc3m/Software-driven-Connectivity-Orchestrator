@@ -29,4 +29,4 @@ This section lists next the commands to install all the dependencies, and thus e
 ````
 
 ## References
-1. Ryu, component-based software defined networking framework [Online]. Available: https://ryu-sdn.org
+[1] Ryu, component-based software defined networking framework [Online]. Available: https://ryu-sdn.org
