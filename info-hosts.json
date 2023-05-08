@@ -1,0 +1,52 @@
+{
+  "h1": {
+      "hostname": "h1",
+      "mac-addr": "02:a1:b6:ac:ff:52",
+      "port" : {
+        "dpid": "0000000000000001",
+        "port_number": "1",
+        "port_name": "s1-eth1"
+      }
+  },
+  "h2": {
+      "hostname": "h2",
+      "mac-addr": "c6:49:71:6c:88:f0",
+      "port" : {
+        "dpid": "0000000000000003",
+        "port_number": "2",
+        "port_name": "s3-eth2"
+      }
+  },
+  "h3": {
+      "hostname": "h3",
+      "mac-addr": "ca:39:bf:ac:fd:e4",
+      "port" : {
+        "dpid": "0000000000000001",
+        "port_number": "2",
+        "port_name": "s1-eth2"
+      }
+  },
+  "h4": {
+      "hostname": "h4",
+      "mac-addr": "42:73:69:71:4d:8f",
+      "port" : {
+        "dpid": "0000000000000003",
+        "port_number": "3",
+        "port_name": "s3-eth3"
+      }
+  },
+  "h5": {
+      "hostname": "h5",
+      "mac-addr": "66:39:da:47:10:ac",
+      "port" : {
+        "dpid": "0000000000000002",
+        "port_number": "3",
+        "port_name": "s2-eth3"
+      }
+  }
+}
+
+
+
+
+

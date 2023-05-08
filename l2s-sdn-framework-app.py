@@ -1,6 +1,3 @@
-import json
-import logging
-
 from ryu.app.wsgi import ControllerBase
 from ryu.app.wsgi import Response
 from ryu.app.wsgi import route
@@ -18,6 +15,8 @@ from ryu.lib.packet import ether_types
 from ryu.lib.packet import ipv6
 
 import networkx as nx
+import json
+import logging
 
 
 # REST API for switch configuration
@@ -65,6 +64,9 @@ class TopologyAPI(app_manager.RyuApp):
         self.last_cookie = 0
         # Counter for increasing weights in the second flow-path creation
         self.counter = 0
+        self.hosts = self.read_hosts_info()
+        
+        
 
     # Function for adding a flow entry into the switches
     def add_flow(self, datapath, priority, match, actions, cookie=0, buffer_id=None):
@@ -167,20 +169,26 @@ class TopologyAPI(app_manager.RyuApp):
                          "dst": selected_path[len(selected_path) - 1],
                          "path": selected_path}
         self.paths.append(path_to_store)
-        # Messages for debugging: Delete
-        print("-----> Stored path: {0}".format(self.paths))
+        
+        print("-----> Stored path: {0}".format(self.paths)) # Messages for debugging: Delete
 
-        # Information that could be read from a file since it is given by the MANO entity
+        # Information that is read from a file since it is given by the MANO entity      
         if selected_cookie == 1:
-            port_sw_a_to_host = 1
-            port_sw_c_to_host = 1
-            mac_host_a = "fa:16:3e:7a:cd:0f"
-            mac_host_c = "fa:16:3e:cd:52:83"
+            port_sw_a_to_host = int(self.hosts['h1']['port']['port_number'])
+            port_sw_c_to_host = int(self.hosts['h2']['port']['port_number'])
+            mac_host_a = self.hosts['h1']['mac-addr']
+            mac_host_c = self.hosts['h2']['mac-addr']
+        elif selected_cookie == 2:
+            port_sw_a_to_host = int(self.hosts['h2']['port']['port_number'])
+            port_sw_c_to_host = int(self.hosts['h4']['port']['port_number'])
+            mac_host_a = self.hosts['h3']['mac-addr']
+            mac_host_c = self.hosts['h4']['mac-addr']
         else:
-            port_sw_a_to_host = 4
-            port_sw_c_to_host = 4
-            mac_host_a = "fa:16:3e:ef:33:81"
-            mac_host_c = "fa:16:3e:4f:25:26"
+            port_sw_a_to_host = int(self.hosts['h5']['port']['port_number'])
+            port_sw_c_to_host = int(self.hosts['h2']['port']['port_number'])
+            mac_host_a = self.hosts['h5']['mac-addr']
+            mac_host_c = self.hosts['h2']['mac-addr']
+        
 
         # Go through the elements of the selected path to install the appropriate OF rules
         for i in selected_path:
@@ -196,21 +204,23 @@ class TopologyAPI(app_manager.RyuApp):
                 # Dictionary with the info of the link between the first switch and the next switch
                 data_info = self.graph.get_edge_data(i, selected_path[selected_path.index(i) + 1])
                 out_port = data_info.get('port_dpid_' + str(i))
+                in_port = port_sw_a_to_host
 
                 # First rule: steer traffic from the connected host to the following switch/hop
                 print("** First rule: steer traffic in switch {0} with mac addr src {1} through port {2}".
                       format(i, mac_host_a, out_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(eth_src=mac_host_a)
+                match = ofproto_parser.OFPMatch(eth_src=mac_host_a, in_port=in_port)
                 actions = [ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
-                # Second rule: steer traffic to the connected host
+                # Second rule: steer traffic to the connected host (reverse rule)
+                in_port = out_port
                 out_port = port_sw_a_to_host
                 print("** Second rule: steer traffic in switch {0} with mac addr src {1} through port {2}".
                       format(i, mac_host_c, out_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(eth_src=mac_host_c)
+                match = ofproto_parser.OFPMatch(eth_src=mac_host_c, in_port=in_port)
                 actions = [ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
@@ -221,19 +231,22 @@ class TopologyAPI(app_manager.RyuApp):
                 # Dictionary with the info of the link between the last switch and the previous switch
                 data_info = self.graph.get_edge_data(i, selected_path[selected_path.index(i) - 1])
                 out_port = data_info.get('port_dpid_' + str(i))
+                in_port = port_sw_c_to_host
 
                 print("** First rule: steer traffic in switch {0} with mac addr src {1} through port {2}".
                       format(i, mac_host_c, out_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(eth_src=mac_host_c)
+                match = ofproto_parser.OFPMatch(eth_src=mac_host_c, in_port=in_port)
                 actions = [ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
+                # Creating the other direction rule
+                in_port = out_port
                 out_port = port_sw_c_to_host
                 print("** Second rule: steer traffic in switch {0} with mac addr src {1} through port {2}".
                       format(i, mac_host_a, out_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(eth_src=mac_host_a)
+                match = ofproto_parser.OFPMatch(eth_src=mac_host_a, in_port=in_port)
                 actions = [ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
@@ -252,7 +265,7 @@ class TopologyAPI(app_manager.RyuApp):
                 print("** First rule: steer traffic in switch {0} from in_port {1} through out_port {2}".
                       format(i, in_port, out_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(in_port=in_port)
+                match = ofproto_parser.OFPMatch(in_port=in_port, eth_src=mac_host_a)
                 actions = [ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
@@ -260,7 +273,7 @@ class TopologyAPI(app_manager.RyuApp):
                 print("** Second rule: other direction traffic in switch {0} with in_port {1} through out_port {2}".
                       format(i, out_port, in_port))
                 self.logger.info("* Installing rule in the dpid %s", i)
-                match = ofproto_parser.OFPMatch(in_port=out_port)
+                match = ofproto_parser.OFPMatch(in_port=out_port, eth_src=mac_host_c)
                 actions = [ofproto_parser.OFPActionOutput(in_port)]
                 self.add_flow(datapath, 125, match, actions, selected_cookie)
 
@@ -437,6 +450,15 @@ class TopologyAPI(app_manager.RyuApp):
                     print("Key: {0}; Value: {1}".format(key, value))
             print('------------------------------------')
         print('######################################################################')
+    
+    # Function to read the hosts information
+    # TODO: discover this info through the LLDP packets received from the host rather than from a file
+    # NOTE: reading from a file emulates a request to the NFVO to get the information
+    def read_hosts_info(self):
+        with open('info-hosts.json', 'r') as f:
+            data = json.load(f)
+        return data
+            
 
     # Function for handling switch features negotiation event, storing the switches in nodes of a graph
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -468,7 +490,8 @@ class TopologyAPI(app_manager.RyuApp):
 
         self.add_flow(datapath, 0, match, actions)
 
-    # Function for handling Packet-In events
+    # Function for handling Packet-In events: At th
+    # is moment, all the packets are ignored
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
         # If you hit this you might want to increase
@@ -677,13 +700,20 @@ class TopologyController(ControllerBase):
         # print('Reading API call parameters...')
         # print(kwargs)
 
-        # Info that should be passed by the MANO entity, or being discover by an application of the controller
-        switch_node_a = format(1, "x").zfill(16)
-        switch_node_c = format(3, "x").zfill(16)
+        # Info that should be passed by the MANO entity, or being discover by an application of the controller      
+        # TODO: This info should be passed in the api request
+        if self.topology_api_app.last_cookie != 2:
+            switch_node_src = format(1, "x").zfill(16)
+        else:
+            switch_node_src = format(2, "x").zfill(16)
+
+        switch_node_dst = format(3, "x").zfill(16)
         metric = "weight"
 
+        print("Calculate path between src [{0}] and dst [{1}]".format(switch_node_src, switch_node_dst))
+
         # Get all the available simple paths (this gets a list of lists)
-        list_available_paths = self.topology_api_app.calculate_paths(switch_node_a, switch_node_c, metric)
+        list_available_paths = self.topology_api_app.calculate_paths(switch_node_src, switch_node_dst, metric)
         self.topology_api_app.create_flowpath(list_available_paths)
 
         #self.topology_api_app.increase_path_weight(list_available_paths[0])
@@ -700,7 +730,7 @@ class TopologyController(ControllerBase):
         print(self.topology_api_app.paths)
         self.topology_api_app.update_topology_links()
         graph_edges = self.topology_api_app.graph.edges.data()
-        response = "<b>+ Graph Nodes:</b> " + str(graph_nodes) + "<br>" + "<b>+ Graph Edges:</b> " + str(graph_edges)
+        response = "<b>+ Graph Nodes:</b> " + str(graph_nodes) + "<br>" + "<b>+ Graph Edges:</b> " + str(graph_edges) + "<br>" + "<b>+ Calculated Paths:</b> " + str(self.topology_api_app.paths)
         print(response)
         return Response(content_type='text/html', body=response)
 
