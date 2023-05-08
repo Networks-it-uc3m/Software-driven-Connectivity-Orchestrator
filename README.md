@@ -28,5 +28,8 @@ This section lists next the commands to install all the dependencies, and thus e
 # ryu-manager --observe-links l2s-sdn-framework-app.py
 ````
 
+> **Note**:
+> this development has been validated using **Linux Ubuntu 18.04.6 LTS** as Operating System, and **Python v3.6.9**. 
+
 ## References
 [1] Ryu, component-based software defined networking framework [Online]. Available: https://ryu-sdn.org
