@@ -179,7 +179,7 @@ class TopologyAPI(app_manager.RyuApp):
             mac_host_a = self.hosts['h1']['mac-addr']
             mac_host_c = self.hosts['h2']['mac-addr']
         elif selected_cookie == 2:
-            port_sw_a_to_host = int(self.hosts['h2']['port']['port_number'])
+            port_sw_a_to_host = int(self.hosts['h3']['port']['port_number'])
             port_sw_c_to_host = int(self.hosts['h4']['port']['port_number'])
             mac_host_a = self.hosts['h3']['mac-addr']
             mac_host_c = self.hosts['h4']['mac-addr']
