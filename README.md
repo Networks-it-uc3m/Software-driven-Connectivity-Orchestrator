@@ -1,4 +1,4 @@
-# Software-driven L2 inter-site communications
+# Software-driven Connectivity Orchestrator
 Repository including the source code developed to support the flexible, cost-efficient and reliable data-layer link communications among heterogeneous NFV Infrastructures. In particular, the repository contains implementation of an Software Defined Networking (SDN) framework, based on Ryu [1].  
 
 
